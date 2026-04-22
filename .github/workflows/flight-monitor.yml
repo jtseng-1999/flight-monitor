@@ -2,7 +2,7 @@ name: Flight Monitor - PAS to ATH
 
 on:
   schedule:
-    - cron: '0 * * * *'   # Every hour
+    - cron: '23 * * * *'   # Every hour at minute 23 (avoids top-of-hour congestion)
   workflow_dispatch:        # Allow manual runs from GitHub UI
 
 jobs:
