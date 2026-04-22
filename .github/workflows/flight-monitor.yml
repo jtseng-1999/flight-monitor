@@ -40,35 +40,30 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          python3 << 'EOF'
+          python3 -c '
           import smtplib
           import os
           from email.mime.text import MIMEText
           from email.mime.multipart import MIMEMultipart
           from datetime import datetime
 
-          run_id = os.environ.get('RUN_ID', 'unknown')
+          run_id = os.environ.get("RUN_ID", "unknown")
           msg = MIMEMultipart()
-          msg['From'] = 'jtseng1999@gmail.com'
-          msg['To'] = 'jtseng1999@gmail.com'
-          msg['Subject'] = f'Flight Monitor Manual Run - {datetime.utcnow().isoformat()}'
-          msg.attach(MIMEText(f"""Manual flight monitor run executed at {datetime.utcnow().isoformat()} UTC.
-
-Check the full run here:
-https://github.com/jtseng-1999/flight-monitor/actions/runs/{run_id}
-
-— Flight Monitor
-          """, "plain"))
+          msg["From"] = "jtseng1999@gmail.com"
+          msg["To"] = "jtseng1999@gmail.com"
+          msg["Subject"] = f"Flight Monitor Manual Run - {datetime.utcnow().isoformat()}"
+          body = f"Manual flight monitor run executed at {datetime.utcnow().isoformat()} UTC.\n\nCheck the full run here:\nhttps://github.com/jtseng-1999/flight-monitor/actions/runs/{run_id}\n\n— Flight Monitor"
+          msg.attach(MIMEText(body, "plain"))
 
           try:
-              password = os.environ.get('GMAIL_APP_PASSWORD', '').replace(' ', '')
-              with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                  server.login('jtseng1999@gmail.com', password)
+              password = os.environ.get("GMAIL_APP_PASSWORD", "").replace(" ", "")
+              with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                  server.login("jtseng1999@gmail.com", password)
                   server.send_message(msg)
               print("Manual run notification sent!")
           except Exception as e:
               print(f"Failed to send notification: {e}")
-          EOF
+          '
 
       - name: Upload screenshot (for debugging)
         if: always()
@@ -94,37 +89,27 @@ https://github.com/jtseng-1999/flight-monitor/actions/runs/{run_id}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          python3 << 'EOF'
+          python3 -c '
           import smtplib
           import os
           from email.mime.text import MIMEText
           from email.mime.multipart import MIMEMultipart
           from datetime import datetime
 
-          run_id = os.environ.get('RUN_ID', 'unknown')
+          run_id = os.environ.get("RUN_ID", "unknown")
           msg = MIMEMultipart()
-          msg['From'] = 'jtseng1999@gmail.com'
-          msg['To'] = 'jtseng1999@gmail.com'
-          msg['Subject'] = '⚠️ Flight Monitor Run FAILED'
-          msg.attach(MIMEText(f"""Flight monitor check failed at {datetime.utcnow().isoformat()} UTC.
-
-This means you might not get seat availability alerts. Check the logs:
-https://github.com/jtseng-1999/flight-monitor/actions/runs/{run_id}
-
-Common issues:
-- Google Flights blocked the request (bot detection)
-- Network connectivity issue
-- Gmail authentication failed
-
-— Flight Monitor
-          """, "plain"))
+          msg["From"] = "jtseng1999@gmail.com"
+          msg["To"] = "jtseng1999@gmail.com"
+          msg["Subject"] = "Flight Monitor Run FAILED"
+          body = f"Flight monitor check failed at {datetime.utcnow().isoformat()} UTC.\n\nThis means you might not get seat availability alerts. Check the logs:\nhttps://github.com/jtseng-1999/flight-monitor/actions/runs/{run_id}\n\nCommon issues:\n- Google Flights blocked the request (bot detection)\n- Network connectivity issue\n- Gmail authentication failed\n\n— Flight Monitor"
+          msg.attach(MIMEText(body, "plain"))
 
           try:
-              password = os.environ.get('GMAIL_APP_PASSWORD', '').replace(' ', '')
-              with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                  server.login('jtseng1999@gmail.com', password)
+              password = os.environ.get("GMAIL_APP_PASSWORD", "").replace(" ", "")
+              with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                  server.login("jtseng1999@gmail.com", password)
                   server.send_message(msg)
               print("Failure alert sent!")
           except Exception as e:
               print(f"Failed to send alert: {e}")
-          EOF
+          '
