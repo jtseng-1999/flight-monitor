@@ -47,21 +47,20 @@ async def check_availability():
             if TARGET_TIME not in content:
                 print(f"Flight at {TARGET_TIME} not found on page.")
                 await browser.close()
-                return None  # Can't determine — treat as unknown
+                return {"available": None, "url": GOOGLE_FLIGHTS_URL}
 
             # If the time IS on the page, check for "Sold out" nearby
-            # Look for sold out text anywhere on the page
             sold_out_indicators = ["Sold out", "sold out", "SOLD OUT"]
             is_sold_out = any(indicator in content for indicator in sold_out_indicators)
 
             print(f"Flight {TARGET_TIME} found. Sold out: {is_sold_out}")
             await browser.close()
-            return not is_sold_out  # True = available
+            return {"available": not is_sold_out, "url": GOOGLE_FLIGHTS_URL}
 
         except Exception as e:
             print(f"Error during page check: {e}")
             await browser.close()
-            return None
+            return {"available": None, "url": GOOGLE_FLIGHTS_URL}
 
 def load_state():
     if STATE_FILE.exists():
@@ -77,39 +76,62 @@ def save_state(is_available):
         "last_check": datetime.utcnow().isoformat()
     }))
 
-def send_email():
+def send_email(result):
     password = os.environ.get("GMAIL_APP_PASSWORD", "").replace(" ", "")
     if not password:
         print("GMAIL_APP_PASSWORD not set — skipping email.")
         return
 
+    is_available = result.get("available")
+    url = result.get("url", GOOGLE_FLIGHTS_URL)
+
+    if is_available:
+        subject = f"🎉 SEATS AVAILABLE: {DEPARTURE}→{ARRIVAL} on July 25"
+        body = f"""SEATS FOUND! Book immediately!
+
+Flight Details:
+• Route: {DEPARTURE} (Paros) → {ARRIVAL} (Athens)
+• Date: July 25, 2026
+• Departure: {TARGET_TIME}
+• Status: ✅ SEATS AVAILABLE
+
+Book here: {url}
+
+— Flight Monitor
+"""
+    else:
+        subject = f"Flight Check: {DEPARTURE}→{ARRIVAL} on July 25"
+        body = f"""Flight Status Update:
+
+• Route: {DEPARTURE} (Paros) → {ARRIVAL} (Athens)
+• Date: July 25, 2026
+• Departure: {TARGET_TIME}
+• Status: ❌ Still Sold Out
+
+Search link: {url}
+
+— Flight Monitor
+"""
+
     msg = MIMEMultipart()
     msg["From"] = EMAIL_TO
     msg["To"] = EMAIL_TO
-    msg["Subject"] = f"SEATS AVAILABLE: {DEPARTURE}→{ARRIVAL} on July 25"
-    msg.attach(MIMEText(f"""Seats are now available on your monitored flight!
-
-Route:     {DEPARTURE} (Paros) → {ARRIVAL} (Athens)
-Date:      July 25, 2026
-Departure: {TARGET_TIME}
-
-Book now: {GOOGLE_FLIGHTS_URL}
-
-— Your hourly flight monitor
-""", "plain"))
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(EMAIL_TO, password)
             server.send_message(msg)
-        print("Alert email sent!")
+        print("Email sent!")
     except Exception as e:
         print(f"Email failed: {e}")
 
 async def main():
     print(f"[{datetime.utcnow().isoformat()}] Checking {DEPARTURE}→{ARRIVAL} on {DATE}")
 
-    is_available = await check_availability()
+    result = await check_availability()
+    is_available = result.get("available")
 
     if is_available is None:
         print("Could not determine availability — skipping state update.")
@@ -120,7 +142,10 @@ async def main():
 
     if is_available and not state["was_available"]:
         print("Status changed to AVAILABLE — sending alert!")
-        send_email()
+        send_email(result)
+    elif not is_available and state["was_available"]:
+        print("Status changed to SOLD OUT — notifying of change.")
+        send_email(result)
 
     save_state(is_available)
     sys.exit(0)
