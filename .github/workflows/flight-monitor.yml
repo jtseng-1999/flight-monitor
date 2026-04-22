@@ -31,6 +31,39 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python flight_monitor.py
 
+      - name: Send manual run notification
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python3 << 'EOF'
+          import smtplib
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+          from datetime import datetime
+
+          msg = MIMEMultipart()
+          msg['From'] = 'jtseng1999@gmail.com'
+          msg['To'] = 'jtseng1999@gmail.com'
+          msg['Subject'] = f'Flight Monitor Manual Run - {datetime.utcnow().isoformat()}'
+          msg.attach(MIMEText(f"""Manual flight monitor run executed at {datetime.utcnow().isoformat()} UTC.
+
+Check the full run here:
+https://github.com/jtseng-1999/flight-monitor/actions/runs/${{ github.run_id }}
+
+— Flight Monitor
+          """, "plain"))
+
+          try:
+              password = '${{ env.GMAIL_APP_PASSWORD }}'.replace(' ', '')
+              with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                  server.login('jtseng1999@gmail.com', password)
+                  server.send_message(msg)
+              print("Manual run notification sent!")
+          except Exception as e:
+              print(f"Failed to send notification: {e}")
+          EOF
+
       - name: Upload screenshot (for debugging)
         if: always()
         uses: actions/upload-artifact@v4
@@ -48,3 +81,41 @@ jobs:
             git diff --staged --quiet || git commit -m "chore: update flight monitor state [skip ci]"
             git push
           fi
+
+      - name: Send failure alert
+        if: failure()
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python3 << 'EOF'
+          import smtplib
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+          from datetime import datetime
+
+          msg = MIMEMultipart()
+          msg['From'] = 'jtseng1999@gmail.com'
+          msg['To'] = 'jtseng1999@gmail.com'
+          msg['Subject'] = '⚠️ Flight Monitor Run FAILED'
+          msg.attach(MIMEText(f"""Flight monitor check failed at {datetime.utcnow().isoformat()} UTC.
+
+This means you might not get seat availability alerts. Check the logs:
+https://github.com/jtseng-1999/flight-monitor/actions/runs/${{ github.run_id }}
+
+Common issues:
+- Google Flights blocked the request (bot detection)
+- Network connectivity issue
+- Gmail authentication failed
+
+— Flight Monitor
+          """, "plain"))
+
+          try:
+              password = '${{ env.GMAIL_APP_PASSWORD }}'.replace(' ', '')
+              with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                  server.login('jtseng1999@gmail.com', password)
+                  server.send_message(msg)
+              print("Failure alert sent!")
+          except Exception as e:
+              print(f"Failed to send alert: {e}")
+          EOF
