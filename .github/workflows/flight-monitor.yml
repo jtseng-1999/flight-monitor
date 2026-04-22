@@ -43,6 +43,8 @@ jobs:
         run: |
           git config user.email "flight-monitor@github-actions"
           git config user.name "Flight Monitor Bot"
-          git add .flight_monitor_state.json
-          git diff --staged --quiet || git commit -m "chore: update flight monitor state [skip ci]"
-          git push
+          if [ -f .flight_monitor_state.json ]; then
+            git add .flight_monitor_state.json
+            git diff --staged --quiet || git commit -m "chore: update flight monitor state [skip ci]"
+            git push
+          fi
