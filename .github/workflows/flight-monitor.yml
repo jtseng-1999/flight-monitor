@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Note - Using Haiku for cost efficiency
+        run: echo "This workflow uses Haiku model to minimize token usage"
+
       - name: Install dependencies
         run: |
           pip install playwright
@@ -35,13 +38,16 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         env:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           python3 << 'EOF'
           import smtplib
+          import os
           from email.mime.text import MIMEText
           from email.mime.multipart import MIMEMultipart
           from datetime import datetime
 
+          run_id = os.environ.get('RUN_ID', 'unknown')
           msg = MIMEMultipart()
           msg['From'] = 'jtseng1999@gmail.com'
           msg['To'] = 'jtseng1999@gmail.com'
@@ -49,13 +55,13 @@ jobs:
           msg.attach(MIMEText(f"""Manual flight monitor run executed at {datetime.utcnow().isoformat()} UTC.
 
 Check the full run here:
-https://github.com/jtseng-1999/flight-monitor/actions/runs/${{ github.run_id }}
+https://github.com/jtseng-1999/flight-monitor/actions/runs/{run_id}
 
 — Flight Monitor
           """, "plain"))
 
           try:
-              password = '${{ env.GMAIL_APP_PASSWORD }}'.replace(' ', '')
+              password = os.environ.get('GMAIL_APP_PASSWORD', '').replace(' ', '')
               with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
                   server.login('jtseng1999@gmail.com', password)
                   server.send_message(msg)
@@ -86,13 +92,16 @@ https://github.com/jtseng-1999/flight-monitor/actions/runs/${{ github.run_id }}
         if: failure()
         env:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           python3 << 'EOF'
           import smtplib
+          import os
           from email.mime.text import MIMEText
           from email.mime.multipart import MIMEMultipart
           from datetime import datetime
 
+          run_id = os.environ.get('RUN_ID', 'unknown')
           msg = MIMEMultipart()
           msg['From'] = 'jtseng1999@gmail.com'
           msg['To'] = 'jtseng1999@gmail.com'
@@ -100,7 +109,7 @@ https://github.com/jtseng-1999/flight-monitor/actions/runs/${{ github.run_id }}
           msg.attach(MIMEText(f"""Flight monitor check failed at {datetime.utcnow().isoformat()} UTC.
 
 This means you might not get seat availability alerts. Check the logs:
-https://github.com/jtseng-1999/flight-monitor/actions/runs/${{ github.run_id }}
+https://github.com/jtseng-1999/flight-monitor/actions/runs/{run_id}
 
 Common issues:
 - Google Flights blocked the request (bot detection)
@@ -111,7 +120,7 @@ Common issues:
           """, "plain"))
 
           try:
-              password = '${{ env.GMAIL_APP_PASSWORD }}'.replace(' ', '')
+              password = os.environ.get('GMAIL_APP_PASSWORD', '').replace(' ', '')
               with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
                   server.login('jtseng1999@gmail.com', password)
                   server.send_message(msg)
